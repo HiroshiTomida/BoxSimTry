@@ -27,3 +27,8 @@ data_new= {
     "updated_datetime": "time"
 }
 print(data_new)
+
+# jsonファイルをcompleteに返す
+with open(r"C:\Users\ttdcuser\Desktop\BOX_test\complete\result.json", "w", encoding="utf-8") as f:
+    json.dump(data_new, f, ensure_ascii=False, indent=4)
+
