@@ -1,23 +1,31 @@
 import zipfile
 import os
 import json
+import re
 
-zip_path = r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad\750_20260707_003010.zip"
+folder = r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad"
+
+# zip_path = r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad\750_20260707_003010.zip"
 extract_dir = "extracted_files"
 
 if not os.path.exists(extract_dir):
     os.makedirs(extract_dir)
 
-# zipファイル解凍
-with zipfile.ZipFile(zip_path, "r") as zip_ref:
-    zip_ref.extractall(extract_dir)
+pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
 
-print("解凍が完了しました。")
+# 特定の形式のzipファイルを解凍する
+for file in os.listdir(folder):
+    if pattern.match(file):
+        zip_path = os.path.join(folder, file)
+        # zipファイル解凍
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(extract_dir)
+        print("解凍が完了しました。")
 
 # jsonファイルを読み込む
 with open(r"C:\usr\takezawa\BoxSimTry\extracted_files\summary.json", encoding="utf-8") as f:
      data = json.load(f)
-print(data)
+# print(data)
 
 # 新しい中身を作成する
 data_new= {
