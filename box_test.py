@@ -2,9 +2,13 @@ import zipfile
 import os
 import json
 import re
+from datetime import datetime
 
 upload_folder= r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad"
 complete_folder= r"C:\Users\ttdcuser\Desktop\BOX_test\complete"
+
+def get_time():
+    return datetime.now().strftime("%Y%m%d%H%M%S")
 
 # zip_path = r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad\750_20260707_003010.zip"
 extract_dir = "extracted_files"
@@ -38,13 +42,14 @@ for file in os.listdir(upload_folder):
             # jsonファイルを読み込む
             with open(summary_path, encoding="utf-8") as f:
                 data = json.load(f)
+                time = get_time()
 
             #新しい中身を作成する
             data_new= {
                 "file_id": data["file_id"],
                 "original_file_name": data["original_file_name"],
                 "box_url": "url",
-                "updated_datetime": "time"
+                "updated_datetime": time
             }
             print(data_new)
 
