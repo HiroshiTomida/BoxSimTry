@@ -3,7 +3,8 @@ import os
 import json
 import re
 
-folder = r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad"
+upload_folder= r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad"
+complete_folder= r"C:\Users\ttdcuser\Desktop\BOX_test\complete"
 
 # zip_path = r"C:\Users\ttdcuser\Desktop\BOX_test\uploaad\750_20260707_003010.zip"
 extract_dir = "extracted_files"
@@ -13,11 +14,13 @@ if not os.path.exists(extract_dir):
 
 pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
 
+found = False
+
 # 特定の形式のzipファイルを解凍する
-for file in os.listdir(folder):
+for file in os.listdir(upload_folder):
     if pattern.match(file):
         found = True
-        zip_path = os.path.join(folder, file)
+        zip_path = os.path.join(upload_folder, file)
         
         #zipごとに解凍フォルダを作成
         unzip_dir = os.path.join(extract_dir, file.replace(".zip", ""))
@@ -45,7 +48,7 @@ for file in os.listdir(folder):
             }
             print(data_new)
 
-            output_path = os.path.join(r"C:\Users\ttdcuser\Desktop\BOX_test\complete", file.replace(".zip","_result.json"))
+            output_path = os.path.join(complete_folder, file.replace(".zip","_result.json"))
             # jsonファイルをcompleteに返す
             with open(output_path, "w", encoding="utf-8") as f:
                 json.dump(data_new, f, ensure_ascii=False, indent=4)
