@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import tempfile
 import zipfile
 from datetime import datetime
 
@@ -29,7 +30,7 @@ def get_time():
 
 
 # zip一つあたりの処理　解凍→json探す→データ作成→結果出力
-def proccess_zip(file, extract_dir, temp_zip, ftp):
+def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir):
     # zip_path = os.path.join(upload_folder, file)
 
     # zipごとに解凍フォルダを作成
@@ -62,7 +63,7 @@ def proccess_zip(file, extract_dir, temp_zip, ftp):
     }
     print(data_new)
 
-    complete_dir = "temp_complete"
+    complete_dir = f"{tmp_dir}/temp_complete"
     if not os.path.exists(complete_dir):
         os.makedirs(complete_dir, exist_ok=True)
 
@@ -76,33 +77,38 @@ def proccess_zip(file, extract_dir, temp_zip, ftp):
 
 # main関数
 def main():
+
     ftp = FtpAccessor()
     # ftpサーバーと接続
     if not ftp.connect():
         print("接続失敗")
         return
 
-    extract_dir = "extracted_files"
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        print(tmp_dir)
 
-    if not os.path.exists(extract_dir):
-        os.makedirs(extract_dir, exist_ok=True)
+        extract_dir = f"{tmp_dir}/extracted_files"
 
-    files = ftp.list_files("/upload", ".zip")
+        if not os.path.exists(extract_dir):
+            os.makedirs(extract_dir, exist_ok=True)
 
-    pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
+        files = ftp.list_files("ecam3/upload", ".zip")
+        # files = ftp.list_files("/ecam3/upload", ".zip")
 
-    for file in files:
-        if pattern.match(file):
-            target_path = f"/upload/{file}"
-            zip_data = ftp.download_bytes(target_path)
+        # pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
 
-            temp_zip = os.path.join(extract_dir, file)
+        for file in files:
+            if not file.startswith("complete_"):
+                target_path = f"/upload/{file}"
+                zip_data = ftp.download_bytes(target_path)
 
-            with open(temp_zip, "wb") as f:
-                f.write(zip_data)
+                temp_zip = os.path.join(extract_dir, file)
 
-            proccess_zip(file, extract_dir, temp_zip, ftp)
-    # upload_folder = r"C:\Users\ttdcuser\Desktop\BOX_test\upload"
+                with open(temp_zip, "wb") as f:
+                    f.write(zip_data)
+
+                proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir)
+        # upload_folder = r"C:\Users\ttdcuser\Desktop\BOX_test\upload"
     # complete_folder = r"C:\Users\ttdcuser\Desktop\BOX_test\complete"
 
     # zip_path = r"C:\Users\ttdcuser\Desktop\BOX_test\upload\750_20260707_003010.zip"
