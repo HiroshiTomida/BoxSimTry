@@ -2,6 +2,7 @@ import json
 import os
 import re
 import tempfile
+import time
 import zipfile
 from datetime import datetime
 
@@ -11,22 +12,6 @@ from ftp_accessor import FtpAccessor
 # 日時時刻取得
 def get_time():
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: DTZ005
-
-
-# # 特定の形式のzipファイルを解凍する
-# def searchzip(files, pattern):
-#     zip_files = []
-#     for file in files:
-#         if pattern.match(file):
-#             zip_files.append(file)
-#     return zip_files
-
-
-# # zipファイル解凍
-# def zipTounzip(temp_zip, unzip_dir):
-#     with zipfile.ZipFile(temp_zip, "r") as zip_ref:
-#         zip_ref.extractall(unzip_dir)
-#     print("解凍が完了しました。")
 
 
 # zip一つあたりの処理　解凍→json探す→データ作成→結果出力
@@ -132,4 +117,14 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # 指定時間ごとに処理を繰り返す
+    while True:
+        start_time = time.monotonic()
+
+        main()
+        # 経過時間
+        elapsed_time = time.monotonic() - start_time
+        # 〇秒ごとに処理を繰り返す(処理が長引いた場合はすぐ繰り返す)
+        wait_time = max(0, 10 - elapsed_time)
+
+        time.sleep(wait_time)
