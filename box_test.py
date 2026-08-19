@@ -63,6 +63,7 @@ def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir, root_path, list):
     }
     print(data_new)
 
+    # 一時コンプリートフォルダ
     complete_dir = f"{tmp_dir}/temp_complete"
     if not os.path.exists(complete_dir):
         os.makedirs(complete_dir, exist_ok=True)
@@ -72,10 +73,11 @@ def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir, root_path, list):
     with open(save_file_path, "w", encoding="utf-8") as f:
         json.dump(data_new, f, ensure_ascii=False, indent=4)
 
-    # コンプリートフォルダ作成
+    # ftpサーバ上にコンプリートフォルダ作成
     complete_path = root_path + f"{list}/complete"
     ftp.make_dirs(complete_path)
 
+    # ftpサーバー上にアップロード
     ftp.upload(save_file_path, complete_path)
 
 
@@ -88,23 +90,24 @@ def main():
         print("接続失敗")
         return
 
+    # 一時フォルダ置き場(withを抜けたら削除される)
     with tempfile.TemporaryDirectory() as tmp_dir:
         print(tmp_dir)
 
+        # zipダウンロードディレクトリ
         extract_dir = f"{tmp_dir}/extracted_files"
 
         if not os.path.exists(extract_dir):
             os.makedirs(extract_dir, exist_ok=True)
 
-        serch_lists = ["s_tltp", "ecam3"]
+        # 検索フォルダ
+        serch_folders = ["s_tltp", "ecam3"]
 
-        for list in serch_lists:
+        for list in serch_folders:
 
             files = ftp.list_files(f"{list}/upload", ".zip")
-            # files = ftp.list_files("/ecam3/upload", ".zip")
 
-            # pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
-
+            # ルートパス(階層の一番上)
             root_path = os.environ.get("FTP_ROOT_PATH", "/")
 
             for file in files:
