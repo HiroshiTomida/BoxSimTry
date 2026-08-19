@@ -30,7 +30,7 @@ def get_time():
 
 
 # zip一つあたりの処理　解凍→json探す→データ作成→結果出力
-def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir):
+def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir, root_path, list):
     # zip_path = os.path.join(upload_folder, file)
 
     # zipごとに解凍フォルダを作成
@@ -72,7 +72,11 @@ def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir):
     with open(save_file_path, "w", encoding="utf-8") as f:
         json.dump(data_new, f, ensure_ascii=False, indent=4)
 
-    ftp.upload(save_file_path, "/complete")
+    # コンプリートフォルダ作成
+    complete_path = root_path + f"{list}/complete"
+    ftp.make_dirs(complete_path)
+
+    ftp.upload(save_file_path, complete_path)
 
 
 # main関数
@@ -113,11 +117,13 @@ def main():
                     with open(temp_zip, "wb") as f:
                         f.write(zip_data)
 
-                    proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir)
+                    proccess_zip(
+                        file, extract_dir, temp_zip, ftp, tmp_dir, root_path, list
+                    )
 
                     # 元ファイル名をcompleteに変更する
-                    complete_path = root_path + f"{list}/upload/complete_{file}"
-                    ftp.rename_file(target_path, complete_path)
+                    rename_path = root_path + f"{list}/upload/complete_{file}"
+                    ftp.rename_file(target_path, rename_path)
 
     ftp.disconnect()
 
