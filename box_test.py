@@ -97,9 +97,11 @@ def main():
 
         # pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
 
+        root_path = os.environ.get("FTP_ROOT_PATH", "/")
+
         for file in files:
             if not file.startswith("complete_"):
-                target_path = f"/upload/{file}"
+                target_path = root_path + f"ecam3/upload/{file}"
                 zip_data = ftp.download_bytes(target_path)
 
                 temp_zip = os.path.join(extract_dir, file)
@@ -108,18 +110,10 @@ def main():
                     f.write(zip_data)
 
                 proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir)
-        # upload_folder = r"C:\Users\ttdcuser\Desktop\BOX_test\upload"
-    # complete_folder = r"C:\Users\ttdcuser\Desktop\BOX_test\complete"
 
-    # zip_path = r"C:\Users\ttdcuser\Desktop\BOX_test\upload\750_20260707_003010.zip"
-    # zip_files = searchzip(files, pattern)
-
-    # if not zip_files:
-    #     print("一致するzipファイルが見つかりません")
-    #     return
-
-    # for file in zip_files:
-    #     proccess_zip(upload_folder, file, extract_dir, complete_folder)
+                # 元ファイル名をcompleteに変更する
+                complete_path = root_path + f"ecam3/upload/complete_{file}"
+                ftp.rename_file(target_path, complete_path)
 
     ftp.disconnect()
 
