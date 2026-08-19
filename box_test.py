@@ -92,28 +92,32 @@ def main():
         if not os.path.exists(extract_dir):
             os.makedirs(extract_dir, exist_ok=True)
 
-        files = ftp.list_files("ecam3/upload", ".zip")
-        # files = ftp.list_files("/ecam3/upload", ".zip")
+        serch_lists = ["s_tltp", "ecam3"]
 
-        # pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
+        for list in serch_lists:
 
-        root_path = os.environ.get("FTP_ROOT_PATH", "/")
+            files = ftp.list_files(f"{list}/upload", ".zip")
+            # files = ftp.list_files("/ecam3/upload", ".zip")
 
-        for file in files:
-            if not file.startswith("complete_"):
-                target_path = root_path + f"ecam3/upload/{file}"
-                zip_data = ftp.download_bytes(target_path)
+            # pattern = re.compile(r"^\d+_\d{8}_\d{6}\.zip$")
 
-                temp_zip = os.path.join(extract_dir, file)
+            root_path = os.environ.get("FTP_ROOT_PATH", "/")
 
-                with open(temp_zip, "wb") as f:
-                    f.write(zip_data)
+            for file in files:
+                if not file.startswith("complete_"):
+                    target_path = root_path + f"{list}/upload/{file}"
+                    zip_data = ftp.download_bytes(target_path)
 
-                proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir)
+                    temp_zip = os.path.join(extract_dir, file)
 
-                # 元ファイル名をcompleteに変更する
-                complete_path = root_path + f"ecam3/upload/complete_{file}"
-                ftp.rename_file(target_path, complete_path)
+                    with open(temp_zip, "wb") as f:
+                        f.write(zip_data)
+
+                    proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir)
+
+                    # 元ファイル名をcompleteに変更する
+                    complete_path = root_path + f"{list}/upload/complete_{file}"
+                    ftp.rename_file(target_path, complete_path)
 
     ftp.disconnect()
 
