@@ -14,12 +14,13 @@ def get_time():
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: DTZ005
 
 
-# zip一つあたりの処理　解凍→json探す→データ作成→結果出力
-def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir, root_path, list):
-    # zip_path = os.path.join(upload_folder, file)
+# zip一つあたりの処理　解凍→json探す→データ作成→結果出力→ファイルリネーム
+def process_zip(
+    file, download_dir, temp_zip, ftp, tmp_dir, root_path, folder, target_path
+):
 
     # zipごとに解凍フォルダを作成
-    unzip_dir = os.path.join(extract_dir, file.replace(".zip", ""))
+    unzip_dir = os.path.join(download_dir, file.replace(".zip", ""))
     os.makedirs(unzip_dir, exist_ok=True)
 
     # zip解凍
@@ -59,11 +60,15 @@ def proccess_zip(file, extract_dir, temp_zip, ftp, tmp_dir, root_path, list):
         json.dump(data_new, f, ensure_ascii=False, indent=4)
 
     # ftpサーバ上にコンプリートフォルダ作成
-    complete_path = root_path + f"{list}/complete"
+    complete_path = root_path + f"{folder}/complete"
     ftp.make_dirs(complete_path)
 
     # ftpサーバー上にアップロード
     ftp.upload(save_file_path, complete_path)
+
+    # 元ファイル名をcompleteに変更する
+    rename_path = root_path + f"{folder}/upload/complete_{file}"
+    ftp.rename_file(target_path, rename_path)
 
 
 # main関数
@@ -80,38 +85,37 @@ def main():
         print(tmp_dir)
 
         # zipダウンロードディレクトリ
-        extract_dir = f"{tmp_dir}/extracted_files"
-
-        if not os.path.exists(extract_dir):
-            os.makedirs(extract_dir, exist_ok=True)
+        download_dir = f"{tmp_dir}/download_files"
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir, exist_ok=True)
 
         # 検索フォルダ
-        serch_folders = ["s_tltp", "ecam3"]
-
-        for list in serch_folders:
-
-            files = ftp.list_files(f"{list}/upload", ".zip")
+        search_folders = ["s_tltp", "ecam3"]
+        for folder in search_folders:
+            files = ftp.list_files(f"{folder}/upload", ".zip")
 
             # ルートパス(階層の一番上)
             root_path = os.environ.get("FTP_ROOT_PATH", "/")
 
             for file in files:
                 if not file.startswith("complete_"):
-                    target_path = root_path + f"{list}/upload/{file}"
+                    target_path = root_path + f"{folder}/upload/{file}"
                     zip_data = ftp.download_bytes(target_path)
 
-                    temp_zip = os.path.join(extract_dir, file)
-
+                    temp_zip = os.path.join(download_dir, file)
                     with open(temp_zip, "wb") as f:
                         f.write(zip_data)
 
-                    proccess_zip(
-                        file, extract_dir, temp_zip, ftp, tmp_dir, root_path, list
+                    process_zip(
+                        file,
+                        download_dir,
+                        temp_zip,
+                        ftp,
+                        tmp_dir,
+                        root_path,
+                        folder,
+                        target_path,
                     )
-
-                    # 元ファイル名をcompleteに変更する
-                    rename_path = root_path + f"{list}/upload/complete_{file}"
-                    ftp.rename_file(target_path, rename_path)
 
     ftp.disconnect()
 
@@ -126,5 +130,5 @@ if __name__ == "__main__":
         elapsed_time = time.monotonic() - start_time
         # 〇秒ごとに処理を繰り返す(処理が長引いた場合はすぐ繰り返す)
         wait_time = max(0, 10 - elapsed_time)
-
+        # print(elapsed_time)
         time.sleep(wait_time)
