@@ -15,7 +15,7 @@ def get_time():
 
 
 # zip一つあたりの処理　解凍→json探す→データ作成→結果出力→ファイルリネーム
-def process_zip(
+def process_zip_file(
     file, download_dir, temp_zip, ftp, tmp_dir, root_path, folder, target_path
 ):
 
@@ -26,7 +26,7 @@ def process_zip(
     # zip解凍
     with zipfile.ZipFile(temp_zip, "r") as zip_ref:
         zip_ref.extractall(unzip_dir)
-    print("解凍が完了しました。")
+    # print("解凍が完了しました。")
 
     # 解凍したフォルダからjsonを探す
     summary_path = os.path.join(unzip_dir, "summary.json")
@@ -72,7 +72,7 @@ def process_zip(
 
 
 # main関数
-def main():
+def box():
 
     ftp = FtpAccessor()
     # ftpサーバーと接続
@@ -106,7 +106,7 @@ def main():
                     with open(temp_zip, "wb") as f:
                         f.write(zip_data)
 
-                    process_zip(
+                    process_zip_file(
                         file,
                         download_dir,
                         temp_zip,
@@ -120,15 +120,20 @@ def main():
     ftp.disconnect()
 
 
-if __name__ == "__main__":
+def main():
+    repeat_time = 10
     # 指定時間ごとに処理を繰り返す
     while True:
         start_time = time.monotonic()
 
-        main()
+        box()
         # 経過時間
         elapsed_time = time.monotonic() - start_time
         # 〇秒ごとに処理を繰り返す(処理が長引いた場合はすぐ繰り返す)
-        wait_time = max(0, 10 - elapsed_time)
+        wait_time = max(0, repeat_time - elapsed_time)
         # print(elapsed_time)
         time.sleep(wait_time)
+
+
+if __name__ == "__main__":
+    main()
