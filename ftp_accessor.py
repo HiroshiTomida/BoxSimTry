@@ -6,7 +6,7 @@ from contextlib import closing
 from ftplib import FTP, error_perm
 from typing import BinaryIO, Iterator, List
 
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 
 class FtpAccessor:
@@ -37,7 +37,7 @@ class FtpAccessor:
 
         また、ログ設定を初期化し、ログ出力用の logger を生成する。
         """
-        load_dotenv()  # .envファイルを読み込む
+
         # FTP環境変数名
         self.ftp = None
         self.ftp_host = os.environ["FTP_HOST"]
