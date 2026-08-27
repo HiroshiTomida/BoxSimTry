@@ -33,6 +33,14 @@ def process_zip_file(
     ftpサーバにアップロード→元ファイルリネーム
 
         Args:
+            download_dir (str): ローカル側のダウンロード先ディレクトリ
+            file (str): ローカルにダウンロードしたzipファイル名
+            tmp_zip_file_path (str): ローカル側のファイルごとの一時的なダウンロードパス
+            ftp:
+            root_path (str): ルートパス
+            tmp_dir (str): ローカル側の一時的な処理ディレクトリ
+            folder (str): ftpサーバ上の探索フォルダ名
+            target_path (str): ftp上の処理すべきzipファイルパス
 
     """
 
