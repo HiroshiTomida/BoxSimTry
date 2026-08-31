@@ -74,30 +74,59 @@ def process_zip_file(
     }
     # print(data_new)
 
-    # 一時コンプリートフォルダ
-    complete_dir = f"{tmp_dir}/temp_complete"
-    if not os.path.exists(complete_dir):
-        os.makedirs(complete_dir, exist_ok=True)
-
-    save_file_path: str = os.path.join(complete_dir, file.replace(".zip", ".json"))
-    # jsonファイルをcompleteに返す
-    with open(save_file_path, "w", encoding="utf-8") as f:
-        json.dump(data_new, f, ensure_ascii=False, indent=4)
-
-    # ftpサーバ上にコンプリートフォルダ作成
-    ftp_complete_path: str = root_path + f"{folder}/complete"
-    ftp.make_dirs(ftp_complete_path)
-
-    # ftpサーバー上にアップロード
-    ftp.upload(save_file_path, ftp_complete_path)
-
-    # 元ファイル名をcompleteに変更する
-    rename_path: str = root_path + f"{folder}/upload/complete_{file}"
-    ftp.rename_file(target_path, rename_path)
+    ftp_upload(
+        tmp_dir,
+        file,
+        root_path,
+        folder,
+        ftp,
+        target_path,
+        data_new,
+        "complete",
+    )
 
     print(f"{file}" + "の処理が完了しました")
 
     return summary_path
+
+
+def ftp_upload(
+    tmp_dir, file, root_path, folder, ftp, target_path, json_data, result_type
+) -> None:
+    """
+    .jsonをftpサーバにアップロードするまでの処理
+
+    Args:
+        tmp_dir (str): ローカル側の一時的な処理ディレクトリ
+        file (str): ローカルにダウンロードしたzipファイル名
+        root_path (str): ルートパス
+        folder (str): ftpサーバ上の探索フォルダ名
+        ftp
+        target_path (str): ftp上の処理すべきzipファイルパス
+        json_data :新しく作成した.jsonの中身
+        result_type (str): complete/errorのどちらの場合か
+    """
+
+    # 一時jsonフォルダ
+    temp_json_dir = f"{tmp_dir}/temp_{result_type}"
+    if not os.path.exists(temp_json_dir):
+        os.makedirs(temp_json_dir, exist_ok=True)
+
+    save_file_path: str = os.path.join(temp_json_dir, file.replace(".zip", ".json"))
+    # jsonファイルをcomplete/errorに返す
+    with open(save_file_path, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, ensure_ascii=False, indent=4)
+
+    # ftpサーバ上にcomplete/errorフォルダ作成
+    ftp_folder_path: str = root_path + f"{folder}/{result_type}"
+    ftp.make_dirs(ftp_folder_path)
+
+    # ftpサーバー上にアップロード
+    ftp.upload(save_file_path, ftp_folder_path)
+
+    # 元ファイル名をcomplete/errorに変更する
+    rename_path: str = root_path + f"{folder}/upload/{result_type}_{file}"
+    ftp.rename_file(target_path, rename_path)
 
 
 def error(
@@ -125,15 +154,8 @@ def error(
 
     err_time = get_time()
 
-    # 一時エラーフォルダ
-    error_dir = f"{tmp_dir}/temp_error"
-    if not os.path.exists(error_dir):
-        os.makedirs(error_dir, exist_ok=True)
-
-    save_error_file_path: str = os.path.join(error_dir, file.replace(".zip", ".json"))
-
-    # s_tltpのとき
     # もしsummary.jsonがなかったら
+    # s_tltpのとき
     if is_s_tltp:
         err_data = {
             "file_id": file.split("_")[0],
@@ -151,21 +173,8 @@ def error(
             "err_datetime": err_time,
         }
 
-    # jsonファイルをerrorに返す
-    with open(save_error_file_path, "w", encoding="utf-8") as f:
-        json.dump(err_data, f, ensure_ascii=False, indent=4)
-
-    # ftpサーバ上にエラーフォルダ作成
-    ftp_error_path: str = root_path + f"{folder}/error"
-    ftp.make_dirs(ftp_error_path)
-
-    # ftpサーバー上にアップロード
-    ftp.upload(save_error_file_path, ftp_error_path)
+    ftp_upload(tmp_dir, file, root_path, folder, ftp, target_path, err_data, "error")
     print("errorフォルダに" + file.replace(".zip", ".json") + "を追加しました")
-
-    # 元ファイル名をerrorに変更する
-    rename_path: str = root_path + f"{folder}/upload/error_{file}"
-    ftp.rename_file(target_path, rename_path)
 
 
 # main関数
