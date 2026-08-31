@@ -100,6 +100,74 @@ def process_zip_file(
     return summary_path
 
 
+def error(
+    tmp_dir: str,
+    file: str,
+    is_s_tltp: bool,
+    root_path: str,
+    folder: str,
+    ftp,
+    target_path: str,
+) -> None:
+    """
+    .jsonを作るときのエラー処理
+
+        Args:
+            tmp_dir (str): ローカル側の一時的な処理ディレクトリ
+            file (str): ローカルにダウンロードしたzipファイル名
+            is_s_tltp (bool): s_tltpフォルダの処理を行っているか
+            root_path (str): ルートパス
+            folder (str): ftpサーバ上の探索フォルダ名
+            ftp:
+            target_path (str): ftp上の処理すべきzipファイルパス
+
+    """
+
+    err_time = get_time()
+
+    # 一時エラーフォルダ
+    error_dir = f"{tmp_dir}/temp_error"
+    if not os.path.exists(error_dir):
+        os.makedirs(error_dir, exist_ok=True)
+
+    save_error_file_path: str = os.path.join(error_dir, file.replace(".zip", ".json"))
+
+    # s_tltpのとき
+    # もしsummary.jsonがなかったら
+    if is_s_tltp:
+        err_data = {
+            "file_id": file.split("_")[0],
+            "original_file_name": "",
+            "err_description": "",
+            "err_datetime": err_time,
+        }
+
+    # ecam3
+    elif is_s_tltp == False:
+        err_data = {
+            "file_id": "",
+            "original_file_name": "",
+            "err_description": "",
+            "err_datetime": err_time,
+        }
+
+    # jsonファイルをerrorに返す
+    with open(save_error_file_path, "w", encoding="utf-8") as f:
+        json.dump(err_data, f, ensure_ascii=False, indent=4)
+
+    # ftpサーバ上にエラーフォルダ作成
+    ftp_error_path: str = root_path + f"{folder}/error"
+    ftp.make_dirs(ftp_error_path)
+
+    # ftpサーバー上にアップロード
+    ftp.upload(save_error_file_path, ftp_error_path)
+    print("errorフォルダに" + file.replace(".zip", ".json") + "を追加しました")
+
+    # 元ファイル名をerrorに変更する
+    rename_path: str = root_path + f"{folder}/upload/error_{file}"
+    ftp.rename_file(target_path, rename_path)
+
+
 # main関数
 def box() -> None:
     """
@@ -158,55 +226,7 @@ def box() -> None:
                     )
 
                 except Exception as ex:
-                    err_time = get_time()
-
-                    # 一時エラーフォルダ
-                    error_dir = f"{tmp_dir}/temp_error"
-                    if not os.path.exists(error_dir):
-                        os.makedirs(error_dir, exist_ok=True)
-
-                    save_error_file_path: str = os.path.join(
-                        error_dir, file.replace(".zip", ".json")
-                    )
-
-                    # s_tltpのとき
-                    # もしsummary.jsonがなかったら
-                    if is_s_tltp:
-                        err_data = {
-                            "file_id": file.split("_")[0],
-                            "original_file_name": "",
-                            "err_description": "",
-                            "err_datetime": err_time,
-                        }
-
-                    # ecam3
-                    elif is_s_tltp == False:
-                        err_data = {
-                            "file_id": "",
-                            "original_file_name": "",
-                            "err_description": "",
-                            "err_datetime": err_time,
-                        }
-
-                    # jsonファイルをerrorに返す
-                    with open(save_error_file_path, "w", encoding="utf-8") as f:
-                        json.dump(err_data, f, ensure_ascii=False, indent=4)
-
-                    # ftpサーバ上にエラーフォルダ作成
-                    ftp_error_path: str = root_path + f"{folder}/error"
-                    ftp.make_dirs(ftp_error_path)
-
-                    # ftpサーバー上にアップロード
-                    ftp.upload(save_error_file_path, ftp_error_path)
-                    print(
-                        "errorフォルダに"
-                        + file.replace(".zip", ".json")
-                        + "を追加しました"
-                    )
-
-                    # 元ファイル名をerrorに変更する
-                    rename_path: str = root_path + f"{folder}/upload/error_{file}"
-                    ftp.rename_file(target_path, rename_path)
+                    error(tmp_dir, file, is_s_tltp, root_path, folder, ftp, target_path)
 
             is_s_tltp = False
             print(f"{folder}" + "の処理が完了しました")
