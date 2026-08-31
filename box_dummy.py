@@ -26,7 +26,7 @@ def process_zip_file(
     root_path: str,
     folder: str,
     target_path: str,
-) -> None:
+) -> str:
     """
     zipファイル一つあたりの処理
     解凍→jsonファイル探す→新しいjsonデータ作成→ローカル出力→
@@ -57,8 +57,8 @@ def process_zip_file(
     summary_path: str = os.path.join(unzip_dir, "summary.json")
 
     if not os.path.exists(summary_path):
-        print("json形式のファイルが見つかりません。")
-        return
+        print(f"{file}" + "にsummary.jsonが見つかりません")
+        raise FileNotFoundError("summary.jsonがありません")
 
     # jsonファイルを読み込む
     with open(summary_path, encoding="utf-8") as f:
@@ -72,7 +72,7 @@ def process_zip_file(
         "box_url": "https://www.google.co.jp",
         "updated_datetime": json_reading_time,
     }
-    print(data_new)
+    # print(data_new)
 
     # 一時コンプリートフォルダ
     complete_dir = f"{tmp_dir}/temp_complete"
@@ -95,6 +95,10 @@ def process_zip_file(
     rename_path: str = root_path + f"{folder}/upload/complete_{file}"
     ftp.rename_file(target_path, rename_path)
 
+    print(f"{file}" + "の処理が完了しました")
+
+    return summary_path
+
 
 # main関数
 def box() -> None:
@@ -110,23 +114,31 @@ def box() -> None:
 
     # 一時フォルダ置き場(withを抜けたら削除される)
     with tempfile.TemporaryDirectory() as tmp_dir:
-        print(tmp_dir)
+        # print("一時フォルダを作成しました")
 
         # zipダウンロードディレクトリ
         download_dir: str = f"{tmp_dir}/download_files"
         if not os.path.exists(download_dir):
             os.makedirs(download_dir, exist_ok=True)
 
+        is_s_tltp: bool = True
         # 検索フォルダ
-        search_folders: str = ["s_tltp", "ecam3"]
+        search_folders = ["s_tltp", "ecam3"]
         for folder in search_folders:
+            print(f"{folder}" + "の処理を行います")
             files = ftp.list_files(f"{folder}/upload", ".zip")
+            if not files:
+                print(f"{folder}" + "は存在しません")
+                is_s_tltp = False
+                continue
 
             # ルートパス(階層の一番上)
             root_path: str = os.environ.get("FTP_ROOT_PATH", "/")
 
             for file in files:
-                if not file.startswith("complete_"):
+                if file.startswith(("complete_", "error_")):
+                    continue
+                try:
                     target_path: str = root_path + f"{folder}/upload/{file}"
                     zip_data = ftp.download_bytes(target_path)
 
@@ -145,6 +157,60 @@ def box() -> None:
                         target_path,
                     )
 
+                except Exception as ex:
+                    err_time = get_time()
+
+                    # 一時エラーフォルダ
+                    error_dir = f"{tmp_dir}/temp_error"
+                    if not os.path.exists(error_dir):
+                        os.makedirs(error_dir, exist_ok=True)
+
+                    save_error_file_path: str = os.path.join(
+                        error_dir, file.replace(".zip", ".json")
+                    )
+
+                    # s_tltpのとき
+                    # もしsummary.jsonがなかったら
+                    if is_s_tltp:
+                        err_data = {
+                            "file_id": file.split("_")[0],
+                            "original_file_name": "",
+                            "err_description": "",
+                            "err_datetime": err_time,
+                        }
+
+                    # ecam3
+                    elif is_s_tltp == False:
+                        err_data = {
+                            "file_id": "",
+                            "original_file_name": "",
+                            "err_description": "",
+                            "err_datetime": err_time,
+                        }
+
+                    # jsonファイルをerrorに返す
+                    with open(save_error_file_path, "w", encoding="utf-8") as f:
+                        json.dump(err_data, f, ensure_ascii=False, indent=4)
+
+                    # ftpサーバ上にエラーフォルダ作成
+                    ftp_error_path: str = root_path + f"{folder}/error"
+                    ftp.make_dirs(ftp_error_path)
+
+                    # ftpサーバー上にアップロード
+                    ftp.upload(save_error_file_path, ftp_error_path)
+                    print(
+                        "errorフォルダに"
+                        + file.replace(".zip", ".json")
+                        + "を追加しました"
+                    )
+
+                    # 元ファイル名をerrorに変更する
+                    rename_path: str = root_path + f"{folder}/upload/error_{file}"
+                    ftp.rename_file(target_path, rename_path)
+
+            is_s_tltp = False
+            print(f"{folder}" + "の処理が完了しました")
+
     ftp.disconnect()
 
 
@@ -156,6 +222,7 @@ def main():
     # 指定時間ごとに処理を繰り返す
     while True:
         start_time = time.monotonic()
+        print("処理を開始します")
 
         box()
         # 経過時間
@@ -163,6 +230,7 @@ def main():
         # 〇秒ごとに処理を繰り返す(処理が長引いた場合はすぐ繰り返す)
         wait_time = max(0, repeat_time_sec - elapsed_time)
         # print(elapsed_time)
+        print("処理を終了しました")
         time.sleep(wait_time)
 
 
