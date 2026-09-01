@@ -5,6 +5,8 @@ import time
 import zipfile
 from datetime import datetime, timezone
 
+import requests
+
 from ftp_accessor import FtpAccessor
 
 
@@ -14,6 +16,31 @@ def get_time() -> str:
     現在日時を取得する(UTC)
     """
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def return_url(tmp_zip_file_path):
+    url = "http://172.30.129.82:3000/api/upload"
+    headers = {
+        "authorization": "MTc4ODE2MDc1MjUwOA==.OGU0OTdlZWQ5YjRhOGJjOTg4MDgwZGZkLjc5MWY4N2VkMTNmYWE0ZTU2MWRlMmI4MzBkY2VjZWZkMDFkZWY5ZDZmOWZkZDViOWQ5ODQ1MTNkMGQyN2NhZmVjNWViNWNlNDA1YmRiMjY5NjQ3ZjIxYWUxYTRiOTgzOWNhZjViMjdiMWJmZDk0YjFkOGNlMDk4ODI5ZjJkZDlhOTguMmFiMmM0YzM1Mjk0ZjkwZjkxMDk0ZWRjODRjMTViN2U=",
+        "x-zipline-format": "uuid",
+        "x-zipline-original-name": "true",
+    }
+
+    print(os.getcwd())
+    with open(tmp_zip_file_path, "rb") as file:
+        print("open!!!!!!!!")
+        files = {"file": file}
+
+        response = requests.post(url, headers=headers, files=files)
+        response_data = response.json()
+        response_url = response_data["files"][0]["url"]
+
+    # print(response.status_code)
+    # print(response.text)
+    # print([response_url])
+    print("Ziplineへアップロードされました")
+
+    return response_url
 
 
 # zip一つあたりの処理　解凍→json探す→データ作成→結果出力→ファイルリネーム
@@ -65,11 +92,13 @@ def process_zip_file(
         data = json.load(f)
         json_reading_time = get_time()
 
+    zipline_upload_url = return_url(tmp_zip_file_path)
+
     # 新しい中身を作成する
     data_new = {
         "file_id": data["file_id"],
         "original_file_name": data["original_file_name"],
-        "box_url": "https://www.google.co.jp",
+        "box_url": zipline_upload_url,
         "updated_datetime": json_reading_time,
     }
     # print(data_new)
@@ -160,7 +189,7 @@ def error(
         err_data = {
             "file_id": file.split("_")[0],
             "original_file_name": "",
-            "err_description": "",
+            "err_description": "zipline_upload_url",
             "err_datetime": err_time,
         }
 
