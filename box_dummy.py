@@ -39,11 +39,12 @@ def return_url(zipline_upload_path: str) -> str:
         response = requests.post(url, headers=headers, files=files)
         response_data = response.json()
         response_url = response_data["files"][0]["url"]
+        response_name = response_data["files"][0]["name"]
 
     # print(response.status_code)
     # print(response.text)
     # print([response_url])
-    print("Ziplineへアップロードされました")
+    print("Ziplineへ" + f"{response_name}" + "がアップロードされました")
 
     return response_url
 
@@ -118,7 +119,7 @@ def process_zip_file(
                     zip_files_path.append(os.path.join(root, f))
 
         # Ziplineへ送るzipファイルを作る
-        zipline_upload_path = os.path.join(download_dir, "zipline_upload.zip")
+        zipline_upload_path = os.path.join(unzip_dir, file)
         with zipfile.ZipFile(zipline_upload_path, "w", zipfile.ZIP_DEFLATED) as zip_ref:
             for upload_file_path in zip_files_path:
                 zip_ref.write(
@@ -321,6 +322,7 @@ def main():
     # 指定時間ごとに処理を繰り返す
     while True:
         start_time = time.monotonic()
+        print("=" * 50)
         print("処理を開始します")
 
         box()
@@ -330,6 +332,8 @@ def main():
         wait_time = max(0, repeat_time_sec - elapsed_time)
         # print(elapsed_time)
         print("処理を終了しました")
+        print("=" * 50)
+
         time.sleep(wait_time)
 
 
