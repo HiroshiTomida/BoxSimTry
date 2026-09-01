@@ -18,7 +18,7 @@ def get_time() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def return_url(tmp_zip_file_path: str) -> str:
+def return_url(zipline_upload_path: str) -> str:
     """
     ZiplineへファイルをアップロードしURLを取得する
 
@@ -33,7 +33,7 @@ def return_url(tmp_zip_file_path: str) -> str:
         "x-zipline-original-name": "true",
     }
 
-    with open(tmp_zip_file_path, "rb") as file:
+    with open(zipline_upload_path, "rb") as file:
         files = {"file": file}
 
         response = requests.post(url, headers=headers, files=files)
@@ -58,6 +58,7 @@ def process_zip_file(
     root_path: str,
     folder: str,
     target_path: str,
+    is_s_tltp: bool,
 ) -> str:
     """
     zipファイル一つあたりの処理
@@ -97,12 +98,39 @@ def process_zip_file(
         data = json.load(f)
         json_reading_time = get_time()
 
-    zipline_upload_url = return_url(tmp_zip_file_path)
+    file_id = data["file_id"]
+    original_file_name = data["original_file_name"]
+
+    if is_s_tltp:
+        zipline_upload_path = None
+        for root, dirs, files in os.walk(unzip_dir):
+            for f in files:
+                if f != "summary.json":
+                    zipline_upload_path = os.path.join(root, f)
+                    break
+
+    elif is_s_tltp == False:
+        zip_files_path = []
+        # summary.json以外のファイルパスを集める
+        for root, dirs, files in os.walk(unzip_dir):
+            for f in files:
+                if f != "summary.json":
+                    zip_files_path.append(os.path.join(root, f))
+
+        # Ziplineへ送るzipファイルを作る
+        zipline_upload_path = os.path.join(download_dir, "zipline_upload.zip")
+        with zipfile.ZipFile(zipline_upload_path, "w", zipfile.ZIP_DEFLATED) as zip_ref:
+            for upload_file_path in zip_files_path:
+                zip_ref.write(
+                    upload_file_path, os.path.relpath(upload_file_path, unzip_dir)
+                )
+
+    zipline_upload_url = return_url(zipline_upload_path)
 
     # 新しい中身を作成する
     data_new = {
-        "file_id": data["file_id"],
-        "original_file_name": data["original_file_name"],
+        "file_id": file_id,
+        "original_file_name": original_file_name,
         "box_url": zipline_upload_url,
         "updated_datetime": json_reading_time,
     }
@@ -273,6 +301,7 @@ def box() -> None:
                         root_path,
                         folder,
                         target_path,
+                        is_s_tltp,
                     )
 
                 except Exception as ex:
