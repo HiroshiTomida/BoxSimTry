@@ -18,17 +18,22 @@ def get_time() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def return_url(tmp_zip_file_path):
-    url = "http://172.30.129.82:3000/api/upload"
+def return_url(tmp_zip_file_path: str) -> str:
+    """
+    ZiplineへファイルをアップロードしURLを取得する
+
+    Args:
+        tmp_zip_file_path (str): ローカル側のファイルごとの一時的なダウンロードパス
+
+    """
+    url = os.environ["ZIPLINE_UPLOAD_URL"]
     headers = {
-        "authorization": "MTc4ODE2MDc1MjUwOA==.OGU0OTdlZWQ5YjRhOGJjOTg4MDgwZGZkLjc5MWY4N2VkMTNmYWE0ZTU2MWRlMmI4MzBkY2VjZWZkMDFkZWY5ZDZmOWZkZDViOWQ5ODQ1MTNkMGQyN2NhZmVjNWViNWNlNDA1YmRiMjY5NjQ3ZjIxYWUxYTRiOTgzOWNhZjViMjdiMWJmZDk0YjFkOGNlMDk4ODI5ZjJkZDlhOTguMmFiMmM0YzM1Mjk0ZjkwZjkxMDk0ZWRjODRjMTViN2U=",
+        "authorization": os.environ["ZIPLINE_AUTHORIZATION"],
         "x-zipline-format": "uuid",
         "x-zipline-original-name": "true",
     }
 
-    print(os.getcwd())
     with open(tmp_zip_file_path, "rb") as file:
-        print("open!!!!!!!!")
         files = {"file": file}
 
         response = requests.post(url, headers=headers, files=files)
@@ -120,7 +125,14 @@ def process_zip_file(
 
 
 def ftp_upload(
-    tmp_dir, file, root_path, folder, ftp, target_path, json_data, result_type
+    tmp_dir: str,
+    file: str,
+    root_path: str,
+    folder: str,
+    ftp,
+    target_path: str,
+    json_data: dict,
+    result_type: str,
 ) -> None:
     """
     .jsonをftpサーバにアップロードするまでの処理
@@ -132,7 +144,7 @@ def ftp_upload(
         folder (str): ftpサーバ上の探索フォルダ名
         ftp
         target_path (str): ftp上の処理すべきzipファイルパス
-        json_data :新しく作成した.jsonの中身
+        json_data (dict) :新しく作成した.jsonの中身
         result_type (str): complete/errorのどちらの場合か
     """
 
@@ -189,7 +201,7 @@ def error(
         err_data = {
             "file_id": file.split("_")[0],
             "original_file_name": "",
-            "err_description": "zipline_upload_url",
+            "err_description": "",
             "err_datetime": err_time,
         }
 
