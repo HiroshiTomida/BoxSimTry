@@ -320,6 +320,35 @@ class FtpAccessor:
                 return False
         return True
 
+    def directory_exists(self, target_dir_path: str) -> bool:
+        """
+        FTPサーバ上に指定したディレクトリが存在するか確認する。
+
+        Args:
+            target_dir_path (str): 確認したいディレクトリのパス
+
+        Returns:
+            bool: ディレクトリが存在する場合 True、存在しない場合 False
+        """
+        if not self.ftp:
+            return False
+
+        try:
+            # 現在の場所を保存
+            current_dir = self.ftp.pwd()
+
+            # 対象ディレクトリへ移動してみる
+            self.ftp.cwd(target_dir_path)
+
+            # 元の場所に戻す
+            self.ftp.cwd(current_dir)
+
+            return True
+
+        except error_perm:
+            # ディレクトリが存在しない
+            return False
+
     def __move_directory(self, directory: str) -> bool:
         if not self.ftp:
             return False

@@ -271,11 +271,21 @@ def box() -> None:
         is_s_tltp: bool = True
         # 検索フォルダ
         search_folders = ["s_tltp", "ecam3"]
+
         for folder in search_folders:
-            print(f"{folder}" + "の処理を行います")
+            print(f"{folder}の処理を行います")
+
+            # uploadフォルダが存在するか確認
+            if not ftp.directory_exists(f"{folder}/upload"):
+                print(f"{folder}/uploadは存在しません")
+                is_s_tltp = False
+                continue
+
+            # uploadフォルダが存在する場合だけファイル一覧を取得
             files = ftp.list_files(f"{folder}/upload", ".zip")
+
             if not files:
-                print(f"{folder}" + "は存在しません")
+                print(f"{folder}/uploadにZIPファイルがありません")
                 is_s_tltp = False
                 continue
 
