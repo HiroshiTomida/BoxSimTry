@@ -23,7 +23,7 @@ def return_url(zipline_upload_path: str) -> str:
     ZiplineへファイルをアップロードしURLを取得する
 
     Args:
-        tmp_zip_file_path (str): ローカル側のファイルごとの一時的なダウンロードパス
+        zipline_upload_path (str): Ziplineへアップロードするファイルパス
 
     """
     url = os.environ["ZIPLINE_UPLOAD_URL"]
@@ -41,9 +41,6 @@ def return_url(zipline_upload_path: str) -> str:
         response_url = response_data["files"][0]["url"]
         response_name = response_data["files"][0]["name"]
 
-    # print(response.status_code)
-    # print(response.text)
-    # print([response_url])
     print("Ziplineへ" + f"{response_name}" + "がアップロードされました")
 
     return response_url
@@ -51,13 +48,13 @@ def return_url(zipline_upload_path: str) -> str:
 
 # zip一つあたりの処理　解凍→json探す→データ作成→結果出力→ファイルリネーム
 def process_zip_file(
-    file: str,
+    zip_file_name: str,
     download_dir: str,
     tmp_zip_file_path: str,
     ftp,
     tmp_dir: str,
     root_path: str,
-    folder: str,
+    ftp_folder: str,
     target_path: str,
     is_s_tltp: bool,
 ) -> str:
@@ -68,30 +65,29 @@ def process_zip_file(
 
         Args:
             download_dir (str): ローカル側のダウンロード先ディレクトリ
-            file (str): ローカルにダウンロードしたzipファイル名
+            zip_file_name (str): ローカルにダウンロードしたzipファイル名
             tmp_zip_file_path (str): ローカル側のファイルごとの一時的なダウンロードパス
             ftp:
             root_path (str): ルートパス
             tmp_dir (str): ローカル側の一時的な処理ディレクトリ
-            folder (str): ftpサーバ上の探索フォルダ名
+            ftp_folder (str): ftpサーバ上の探索フォルダ名
             target_path (str): ftp上の処理すべきzipファイルパス
 
     """
 
     # zipごとに解凍フォルダを作成
-    unzip_dir: str = os.path.join(download_dir, file.replace(".zip", ""))
+    unzip_dir: str = os.path.join(download_dir, zip_file_name.replace(".zip", ""))
     os.makedirs(unzip_dir, exist_ok=True)
 
     # zip解凍
     with zipfile.ZipFile(tmp_zip_file_path, "r") as zip_ref:
         zip_ref.extractall(unzip_dir)
-    # print("解凍が完了しました。")
 
     # 解凍したフォルダからjsonを探す
     summary_path: str = os.path.join(unzip_dir, "summary.json")
 
     if not os.path.exists(summary_path):
-        print(f"{file}" + "にsummary.jsonが見つかりません")
+        print(f"{zip_file_name}" + "にsummary.jsonが見つかりません")
         raise FileNotFoundError("summary.jsonがありません")
 
     # jsonファイルを読み込む
@@ -119,14 +115,16 @@ def process_zip_file(
                     zip_files_path.append(os.path.join(root, f))
 
         # Ziplineへ送るzipファイルを作る
-        zipline_upload_path = os.path.join(unzip_dir, file)
+        zipline_upload_path = os.path.join(unzip_dir, zip_file_name)
         with zipfile.ZipFile(zipline_upload_path, "w", zipfile.ZIP_DEFLATED) as zip_ref:
             for upload_file_path in zip_files_path:
                 zip_ref.write(
                     upload_file_path, os.path.relpath(upload_file_path, unzip_dir)
                 )
 
-    zipline_upload_url = return_url(zipline_upload_path)
+    zipline_upload_url = return_url(
+        str(zipline_upload_path)
+    )  # os.path.joinはstr | None型だが、ここではNoneになることはない
 
     # 新しい中身を作成する
     data_new = {
@@ -139,25 +137,25 @@ def process_zip_file(
 
     ftp_upload(
         tmp_dir,
-        file,
+        zip_file_name,
         root_path,
-        folder,
+        ftp_folder,
         ftp,
         target_path,
         data_new,
         "complete",
     )
 
-    print(f"{file}" + "の処理が完了しました")
+    print(f"{zip_file_name}" + "の処理が完了しました")
 
     return summary_path
 
 
 def ftp_upload(
     tmp_dir: str,
-    file: str,
+    zip_file_name: str,
     root_path: str,
-    folder: str,
+    ftp_folder: str,
     ftp,
     target_path: str,
     json_data: dict,
@@ -168,9 +166,9 @@ def ftp_upload(
 
     Args:
         tmp_dir (str): ローカル側の一時的な処理ディレクトリ
-        file (str): ローカルにダウンロードしたzipファイル名
+        zip_file_name (str): ローカルにダウンロードしたzipファイル名
         root_path (str): ルートパス
-        folder (str): ftpサーバ上の探索フォルダ名
+        ftp_folder (str): ftpサーバ上の探索フォルダ名
         ftp
         target_path (str): ftp上の処理すべきzipファイルパス
         json_data (dict) :新しく作成した.jsonの中身
@@ -182,29 +180,31 @@ def ftp_upload(
     if not os.path.exists(temp_json_dir):
         os.makedirs(temp_json_dir, exist_ok=True)
 
-    save_file_path: str = os.path.join(temp_json_dir, file.replace(".zip", ".json"))
+    save_file_path: str = os.path.join(
+        temp_json_dir, zip_file_name.replace(".zip", ".json")
+    )
     # jsonファイルをcomplete/errorに返す
     with open(save_file_path, "w", encoding="utf-8") as f:
         json.dump(json_data, f, ensure_ascii=False, indent=4)
 
     # ftpサーバ上にcomplete/errorフォルダ作成
-    ftp_folder_path: str = root_path + f"{folder}/{result_type}"
+    ftp_folder_path: str = root_path + f"{ftp_folder}/{result_type}"
     ftp.make_dirs(ftp_folder_path)
 
     # ftpサーバー上にアップロード
     ftp.upload(save_file_path, ftp_folder_path)
 
     # 元ファイル名をcomplete/errorに変更する
-    rename_path: str = root_path + f"{folder}/upload/{result_type}_{file}"
+    rename_path: str = root_path + f"{ftp_folder}/upload/{result_type}_{zip_file_name}"
     ftp.rename_file(target_path, rename_path)
 
 
 def error(
     tmp_dir: str,
-    file: str,
+    zip_file_name: str,
     is_s_tltp: bool,
     root_path: str,
-    folder: str,
+    ftp_folder: str,
     ftp,
     target_path: str,
 ) -> None:
@@ -213,10 +213,10 @@ def error(
 
         Args:
             tmp_dir (str): ローカル側の一時的な処理ディレクトリ
-            file (str): ローカルにダウンロードしたzipファイル名
+            zip_file_name (str): ローカルにダウンロードしたzipファイル名
             is_s_tltp (bool): s_tltpフォルダの処理を行っているか
             root_path (str): ルートパス
-            folder (str): ftpサーバ上の探索フォルダ名
+            ftp_folder (str): ftpサーバ上の探索フォルダ名
             ftp:
             target_path (str): ftp上の処理すべきzipファイルパス
 
@@ -228,7 +228,7 @@ def error(
     # s_tltpのとき
     if is_s_tltp:
         err_data = {
-            "file_id": file.split("_")[0],
+            "file_id": zip_file_name.split("_")[0],
             "original_file_name": "",
             "err_description": "",
             "err_datetime": err_time,
@@ -243,8 +243,17 @@ def error(
             "err_datetime": err_time,
         }
 
-    ftp_upload(tmp_dir, file, root_path, folder, ftp, target_path, err_data, "error")
-    print("errorフォルダに" + file.replace(".zip", ".json") + "を追加しました")
+    ftp_upload(
+        tmp_dir,
+        zip_file_name,
+        root_path,
+        ftp_folder,
+        ftp,
+        target_path,
+        err_data,
+        "error",
+    )
+    print("errorフォルダに" + zip_file_name.replace(".zip", ".json") + "を追加しました")
 
 
 # main関数
@@ -272,54 +281,64 @@ def box() -> None:
         # 検索フォルダ
         search_folders = ["s_tltp", "ecam3"]
 
-        for folder in search_folders:
-            print(f"{folder}の処理を行います")
+        for ftp_folder in search_folders:
+            print(f"{ftp_folder}の処理を行います")
 
             # uploadフォルダが存在するか確認
-            if not ftp.directory_exists(f"{folder}/upload"):
-                print(f"{folder}/uploadは存在しません")
+            if not ftp.directory_exists(f"{ftp_folder}/upload"):
+                print(f"{ftp_folder}/uploadは存在しません")
                 is_s_tltp = False
                 continue
 
             # uploadフォルダが存在する場合だけファイル一覧を取得
-            files = ftp.list_files(f"{folder}/upload", ".zip")
+            files = ftp.list_files(f"{ftp_folder}/upload", ".zip")
 
             if not files:
-                print(f"{folder}/uploadにZIPファイルがありません")
+                print(f"{ftp_folder}/uploadにZIPファイルがありません")
                 is_s_tltp = False
                 continue
 
             # ルートパス(階層の一番上)
             root_path: str = os.environ.get("FTP_ROOT_PATH", "/")
 
-            for file in files:
-                if file.startswith(("complete_", "error_")):
+            for zip_file_name in files:
+                if zip_file_name.startswith(("complete_", "error_")):
                     continue
                 try:
-                    target_path: str = root_path + f"{folder}/upload/{file}"
+                    target_path: str = (
+                        root_path + f"{ftp_folder}/upload/{zip_file_name}"
+                    )
                     zip_data = ftp.download_bytes(target_path)
 
-                    tmp_zip_file_path: str = os.path.join(download_dir, file)
+                    tmp_zip_file_path: str = os.path.join(download_dir, zip_file_name)
                     with open(tmp_zip_file_path, "wb") as f:
                         f.write(zip_data)
 
                     process_zip_file(
-                        file,
+                        zip_file_name,
                         download_dir,
                         tmp_zip_file_path,
                         ftp,
                         tmp_dir,
                         root_path,
-                        folder,
+                        ftp_folder,
                         target_path,
                         is_s_tltp,
                     )
 
-                except Exception as ex:
-                    error(tmp_dir, file, is_s_tltp, root_path, folder, ftp, target_path)
+                except Exception:
+                    error(
+                        tmp_dir,
+                        zip_file_name,
+                        is_s_tltp,
+                        root_path,
+                        ftp_folder,
+                        ftp,
+                        target_path,
+                    )
 
             is_s_tltp = False
-            print(f"{folder}" + "の処理が完了しました")
+            print(f"{ftp_folder}" + "の処理が完了しました")
 
     ftp.disconnect()
 

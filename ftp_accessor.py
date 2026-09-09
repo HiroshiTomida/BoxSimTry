@@ -2,9 +2,10 @@ import io
 import logging
 import os
 import pathlib
+from collections.abc import Iterator
 from contextlib import closing
 from ftplib import FTP, error_perm
-from typing import BinaryIO, Iterator, List
+from typing import BinaryIO
 
 # from dotenv import load_dotenv
 
@@ -334,19 +335,10 @@ class FtpAccessor:
             return False
 
         try:
-            # 現在の場所を保存
-            current_dir = self.ftp.pwd()
-
-            # 対象ディレクトリへ移動してみる
+            self.ftp.cwd("/")
             self.ftp.cwd(target_dir_path)
-
-            # 元の場所に戻す
-            self.ftp.cwd(current_dir)
-
             return True
-
         except error_perm:
-            # ディレクトリが存在しない
             return False
 
     def __move_directory(self, directory: str) -> bool:
@@ -407,32 +399,6 @@ class FtpAccessor:
                 f"FTP Exception from upload_dir: local_dir: {local_dir}, remote_dir: {remote_dir}.  {ex}"
             )
             return False
-
-    # def __download_ftp_dir(self, remote_dir: str, local_dir: str) -> bool:
-    #     if not self.ftp:
-    #         return False
-    #     os.makedirs(local_dir, exist_ok=True)
-    #     self.logger.info(f"change to {remote_dir}")
-    #     self.ftp.cwd(remote_dir)
-
-    #     file_list = []
-    #     self.ftp.retrlines("LIST", file_list.append)
-
-    #     for item in file_list:
-    #         parts = item.split()
-    #         if not parts:
-    #             continue
-    #         name = parts[-1]
-    #         kind = item[0]
-
-    #         if kind == "d":  # ディレクトリ
-    #             self.__download_ftp_dir(name, os.path.join(local_dir, name))
-    #             self.ftp.cwd("..")
-    #         else:
-    #             local_file = os.path.join(local_dir, name)
-    #             with open(local_file, "wb") as f:
-    #                 self.ftp.retrbinary(f"RETR {name}", f.write)
-    #     return True
 
     def __download_ftp_dir(self, remote_dir: str, local_dir: str) -> bool:
         if not self.ftp:
@@ -504,7 +470,7 @@ class FtpAccessor:
                     self.ftp.storbinary(f"STOR {item}", f)
         return True
 
-    def list_files(self, remote_dir: str, extension: str | None) -> List[str]:
+    def list_files(self, remote_dir: str, extension: str | None) -> list[str]:
         """
         指定した FTP 上のディレクトリに存在するファイルのパスを取得する。
 
